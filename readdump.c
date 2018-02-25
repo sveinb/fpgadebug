@@ -186,7 +186,6 @@ serialport_t open_serialport(char *filename, float baud) {
     fprintf(stderr, "GetCommState : Failed with error %d", GetLastError());
     return INVALID_HANDLE_VALUE;
   }
-
   dcb.BaudRate = baud;
   dcb.fBinary = TRUE;
   dcb.fParity = TRUE;
@@ -231,9 +230,13 @@ unsigned char *get_word(serialport_t in, int nbytes) {
 
   if (!inited) {
     COMMPROP cprop;
+    bufsiz = 1024;
     GetCommProperties(in, &cprop);
-    bufsiz = cprop.dwCurrentRxQueue / 2;
-
+    //bufsiz = cprop.dwCurrentRxQueue / 4;
+    if (!SetupComm(in, 1024*1024, cprop.dwCurrentTxQueue)) {
+      fprintf(stderr, "SetupComm error\n");
+    }
+    GetCommProperties(in, &cprop);
     buf = (unsigned char *)calloc(bufsiz + 8, 1);
     inited = true;
   }
@@ -254,13 +257,19 @@ unsigned char *get_word(serialport_t in, int nbytes) {
     if (dwErrors) {
       fprintf(stderr, "windows serial port error %d\n", dwErrors);
       if (dwErrors & CE_RXOVER) {
-	fprintf(stderr, "windows serial port rx overflow\n");
+	fprintf(stderr, "rx overflow\n");
       }
       if (dwErrors & CE_OVERRUN) {
-	fprintf(stderr, "windows serial port overrun error\n");
+	fprintf(stderr, "buffer overrun\n");
       }
       if (dwErrors & CE_RXPARITY) {
-	fprintf(stderr, "windows serial port parity error\n");
+	fprintf(stderr, "parity error\n");
+      }
+      if (dwErrors & CE_FRAME) {
+	fprintf(stderr, "framing error\n");
+      }
+      if (dwErrors & CE_BREAK) {
+	fprintf(stderr, "break condition\n");
       }
       return NULL;
     }
@@ -457,7 +466,7 @@ int main(int argc, char *argv[])
   for (int i = 0; i < nsig; i++)
     totbit += nbit[i];
 
-  int nbytes = (totbit + 7) / 8;
+  int nbytes = (totbit + 1 + 7) / 8;
 
   if (ascii)
     printheader_ascii();
@@ -471,7 +480,7 @@ int main(int argc, char *argv[])
     int nevent = 0;
     //    printf(".%04x\n", *(unsigned short *)p);
 
-    topbit = p[(totbit + 7) / 8 - 1] & (1 << (totbit & 7));
+    topbit = p[(totbit + 1) / 8] & (1 << (totbit & 7));
     if (topbit) {
       unsigned long timeword = *(unsigned long *)p;
       timeword &= ~(-1LL << totbit);
@@ -485,7 +494,7 @@ int main(int argc, char *argv[])
 	printf("fpga buffer overflow\n");
       }
       else
-	timestamp += timeword;
+	timestamp += timeword+2;
     }
     else {
       last_timestamp = timestamp;
@@ -507,3 +516,4 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+
