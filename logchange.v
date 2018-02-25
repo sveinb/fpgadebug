@@ -32,7 +32,7 @@ module logchange (
 	wire WrClockEn = 1;
 	wire [nsig:0] RdData;
 
-	wire [adrbits-1:0] WrAddress_p_3 = WrAddress + 3;
+	wire [adrbits-1:0] WrAddress_p_4 = WrAddress + 4;
 
 	ram #(
 		.databits(nsig+1),
@@ -54,9 +54,10 @@ module logchange (
 
 	parameter
 		idle = 0,
-		overflow = 1,
-		record = 2,
-		stop = 3;
+		record = 1,
+		overflow1 = 2,
+		overflow2 = 3,
+		stop = 4;
 
 
 	reg[nsig-1:0] sig_1;
@@ -98,6 +99,8 @@ module logchange (
 			if (next && data_valid)
 				data_valid <= 0;
 
+			if (WE)
+				WrAddress <= WrAddress + 1;
 
 			case (state)
 				idle:
@@ -107,7 +110,6 @@ module logchange (
 						WrData <= {1'b1, timestamp};
 					end
 				record: begin
-					WrAddress <= WrAddress + 1;
 					WrData <= {1'b0, sig_1};
 					if (!sig_diff0 && !sig_diff1) begin
 						timestamp <= 0;
@@ -116,10 +118,15 @@ module logchange (
 					end					
 				end
 				
-				overflow: begin
-					WrAddress <= WrAddress + 1;
+				overflow1: begin
 					WE <= 1;
 					WrData <= {nsig+1{1'b1}};
+					state <= overflow2;
+				end
+				
+				overflow2: begin
+					WE <= 1;
+					WrData <= 0;
 					state <= stop;
 				end
 				
@@ -128,8 +135,9 @@ module logchange (
 				end
 				
 			endcase
-			if (WrAddress_p_3 == RdAddress && state != stop) begin
-				state <= overflow;
+
+			if (WrAddress_p_4 == RdAddress && state != stop) begin
+				state <= overflow1;
 			end
 
 
