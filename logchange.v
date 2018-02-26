@@ -6,6 +6,7 @@ module logchange (
 		data,
 		next
 	);
+	/* synthesis syn_ramstyle=block_ram */
 
 	parameter nsig = 12;
 //	parameter timebits = 4*nsig;
@@ -25,30 +26,22 @@ module logchange (
 	reg [adrbits-1:0] RdAddress;
 	reg [nsig:0] WrData;
 	reg WE;
-	wire RdClock = clk;
-	wire RdClockEn = 1;
-	wire Reset = 0;
-	wire WrClock = clk;
-	wire WrClockEn = 1;
 	wire [nsig:0] RdData;
 
 	wire [adrbits-1:0] WrAddress_p_4 = WrAddress + 4;
 
-	ram #(
-		.databits(nsig+1),
-		.adrbits(adrbits)
-	) ram_ (
-		.WrAddress(WrAddress),
-		.RdAddress(RdAddress),
-		.Data(WrData),
-		.WE(WE),
-		.RdClock(RdClock),
-		.RdClockEn(RdClockEn),
-		.Reset(Reset),
-		.WrClock(WrClock),
-		.WrClockEn(WrClockEn),
-		.Q(RdData)
-	);
+ 	reg [nsig+1-1:0] mem [0:(1<<adrbits)-1];
+
+	// Memory Write Block 
+	// Write Operation : When we = 1, cs = 1
+	always @ (posedge clk) begin
+		if (WE) begin
+       		mem[WrAddress] <= WrData;
+	   	end
+	end
+
+	assign RdData = mem[RdAddress];
+	
 
 	reg[nsig-1:0] timestamp;
 
@@ -70,15 +63,16 @@ module logchange (
 
 	task reset;
 		begin
-			state <= idle;
+			state <= record;
 			byteno <= 0;
 			data_valid <= 0;
 
 			WrAddress <= 0;
 			RdAddress <= 0;
-			WE <= 0;
+			WE <= 1;
 			timestamp <= 0;
-			sig_diff1 <= 1'b0;
+			sig_diff1 <= 1'b1;
+			sig_1 <= {nsig{1'b0}};
 		end
 	endtask
 			
