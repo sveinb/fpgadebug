@@ -9,7 +9,6 @@ The IP core consists of three verilog modules:
 
 * logchange
 * xmit_rs232
-* ram
 
 The logchange module instantiates a ram module which acts as the buffer for the logged signals. The logchange outputs
 8 bit parallel data. These can be connected to the xmit_rs232 module to serialize the data on a serial output pin, which
