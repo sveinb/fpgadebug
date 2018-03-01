@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
     int nevent = 0;
     //    printf(".%04x\n", *(unsigned short *)p);
 
-    topbit = p[(totbit + 1) / 8] & (1 << (totbit & 7));
+    topbit = p[totbit / 8] & (1 << (totbit & 7));
     if (topbit) {
       unsigned long timeword = *(unsigned long *)p;
       timeword &= ~(-1LL << totbit);
